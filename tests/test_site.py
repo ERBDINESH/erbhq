@@ -45,13 +45,23 @@ class SiteTests(unittest.TestCase):
                 if anchor and url_path == "":
                     self.assertIn(anchor, home_parser.ids, f"{page}: {link}")
 
+    def test_contact_email_and_copy_control(self):
+        html = (ROOT / "index.html").read_text(encoding="utf-8")
+        js = (ROOT / "assets/main.js").read_text(encoding="utf-8")
+        self.assertIn('href="mailto:hello@erbhq.com"', html)
+        self.assertIn('data-copy-email="hello@erbhq.com"', html)
+        self.assertIn('id="copy-contact-status"', html)
+        self.assertIn("navigator.clipboard", js)
+        self.assertIn("copyEmailButton.addEventListener('click'", js)
+        self.assertIn('https://thirumalaiyar.com/', html)
+        self.assertNotIn('dineshbabucse1@gmail.com', html)
+
     def test_public_pages_do_not_include_editor_instructions(self):
         for page in ("index.html", "privacy/index.html", "terms/index.html"):
             text = (ROOT / page).read_text(encoding="utf-8").lower()
             with self.subTest(page=page):
                 self.assertNotIn("before publishing", text)
                 self.assertNotIn("the operator should", text)
-                self.assertNotIn("hello@erbhq.com", text)
 
 if __name__ == "__main__":
     unittest.main()
