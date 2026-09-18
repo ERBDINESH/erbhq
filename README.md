@@ -80,3 +80,5 @@ Official docs:
 - **Employment note:** Your current agreement's Clause 6 restricts other paid or unpaid work. Website publishing/soliciting work may raise employment questions; postponing business registration does not remove that risk. Do not accept outside work on the assumption that this website authorizes it. Get appropriate advice or written clarification; never use employer/client time, devices, code, or confidential information.
 
 This local project package is not itself a deployment and has not been pushed to GitHub.
+
+Deployment test: GitHub to Cloudflare Pages.
