@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://erbhq.com/sitemap.xml
