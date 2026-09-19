@@ -48,13 +48,33 @@ class SiteTests(unittest.TestCase):
     def test_contact_email_and_copy_control(self):
         html = (ROOT / "index.html").read_text(encoding="utf-8")
         js = (ROOT / "assets/main.js").read_text(encoding="utf-8")
-        self.assertIn('href="mailto:hello@erbhq.com"', html)
+        self.assertIn('hello@erbhq.com', html)
         self.assertIn('data-copy-email="hello@erbhq.com"', html)
         self.assertIn('id="copy-contact-status"', html)
         self.assertIn("navigator.clipboard", js)
         self.assertIn("copyEmailButton.addEventListener('click'", js)
         self.assertIn('https://thirumalaiyar.com/', html)
         self.assertNotIn('dineshbabucse1@gmail.com', html)
+        self.assertIn('id="contact-form"', html)
+        self.assertIn('action="/api/contact"', html)
+        self.assertIn('id="contact-form-status"', html)
+        self.assertNotIn('Compose in Gmail', html)
+        self.assertIn("fetch('/api/contact'", js)
+
+    def test_contact_function_configuration(self):
+        api = (ROOT.parent / "functions/api/contact.js").read_text(encoding="utf-8")
+        routes = __import__("json").loads((ROOT / "_routes.json").read_text(encoding="utf-8"))
+        self.assertEqual(routes["include"], ["/api/*"])
+        self.assertIn("context", api)
+        self.assertIn("env.RESEND_API_KEY", api)
+        self.assertIn("api.resend.com/emails", api)
+        self.assertNotIn("re_x", api)
+        self.assertIn("reply_to: email", api)
+
+    def test_privacy_discloses_form(self):
+        policy = (ROOT / "privacy/index.html").read_text(encoding="utf-8")
+        self.assertIn("Resend", policy)
+        self.assertIn("contact form", policy)
 
     def test_public_pages_do_not_include_editor_instructions(self):
         for page in ("index.html", "privacy/index.html", "terms/index.html"):

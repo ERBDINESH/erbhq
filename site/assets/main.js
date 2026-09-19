@@ -18,6 +18,56 @@
     document.addEventListener('click', event => { if (!nav.contains(event.target) && !toggle.contains(event.target)) close(); });
   }
   document.querySelectorAll('[data-year]').forEach(el => { el.textContent = String(new Date().getFullYear()); });
+  const form = document.getElementById('contact-form');
+  const formStatus = document.getElementById('contact-form-status');
+  if (form && formStatus) {
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+      if (!form.reportValidity()) return;
+      const submit = form.querySelector('button[type="submit"]');
+      if (!submit || submit.disabled) return;
+      const data = new FormData(form);
+      const payload = {
+        name: String(data.get('name') || '').trim(),
+        email: String(data.get('email') || '').trim(),
+        message: String(data.get('message') || '').trim(),
+        website: String(data.get('website') || ''),
+        consent: data.get('consent') === 'on'
+      };
+      if (payload.message.length < 10) {
+        formStatus.textContent = 'Please provide at least 10 characters about your enquiry.';
+        formStatus.dataset.state = 'error';
+        return;
+      }
+      submit.disabled = true;
+      submit.textContent = 'Sending…';
+      formStatus.dataset.state = 'pending';
+      formStatus.textContent = 'Sending your message…';
+      try {
+        const response = await fetch('/api/contact', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (!response.ok) {
+          formStatus.dataset.state = 'error';
+          formStatus.textContent = response.status === 429
+            ? 'Too many requests. Please try again later or copy our email address.'
+            : 'Your message could not be sent. Please try again or copy our email address.';
+          return;
+        }
+        form.reset();
+        formStatus.dataset.state = 'success';
+        formStatus.textContent = 'Thanks! Your enquiry was submitted. We’ll review it and respond if appropriate.';
+      } catch (_) {
+        formStatus.dataset.state = 'error';
+        formStatus.textContent = 'Unable to connect right now. Please try again or copy our email address.';
+      } finally {
+        submit.disabled = false;
+        submit.textContent = 'Send message ↗';
+      }
+    });
+  }
   const copyEmailButton = document.getElementById('copy-contact-email');
   const copyEmailStatus = document.getElementById('copy-contact-status');
   if (copyEmailButton && copyEmailStatus) {
