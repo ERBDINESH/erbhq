@@ -1,0 +1,67 @@
+/* Final visual polish for the iOS consulting repositioning. */
+
+/* Compact ERB brand mark aligned with the green/white identity. */
+.brand-mark{
+  width:52px;
+  height:36px;
+  padding:0;
+  border-radius:999px;
+  background:linear-gradient(135deg,var(--green-500),var(--green-700));
+  box-shadow:0 8px 20px rgba(16,52,43,.12);
+  font-size:0;
+  letter-spacing:normal;
+}
+.brand-mark::before{
+  content:"erb";
+  color:#fff;
+  font-size:16px;
+  font-weight:850;
+  letter-spacing:-.07em;
+  line-height:1;
+}
+.brand-mark span{display:none}
+.brand-lockup strong{font-size:13.5px}
+.site-nav{font-size:12.5px}
+
+/* Improve desktop readability without changing the layout hierarchy. */
+.service-card{min-height:270px}
+.card-index{margin-bottom:44px}
+.service-card p{font-size:14px;line-height:1.72}
+.service-card a{font-size:12px}
+
+.check-list li{font-size:13px}
+.process-list h3{font-size:16px}
+.process-list p{font-size:12.5px;line-height:1.7}
+
+.capabilities-grid h3{font-size:19px}
+.capabilities-grid li{font-size:11.5px;line-height:1.35;padding:6px 9px}
+
+.principles-list h3{font-size:18px}
+.principles-list p{font-size:14px;line-height:1.72}
+.experience-card>p:last-child{font-size:13px}
+
+.product-card p{font-size:14px;line-height:1.72}
+.product-link{font-size:12px}
+
+.review-summary li{font-size:13px}
+.scope-grid span{font-size:13px}
+.report-list li{font-size:13.5px}
+.engagement-flow p{font-size:13px}
+
+.contact-copy>p:not(.section-kicker){font-size:15px}
+.form-field label{font-size:12px}
+.form-field input,.form-field select,.form-field textarea{font-size:14px}
+.form-privacy{font-size:11px}
+.contact-form-status{font-size:12px}
+
+.footer-identity p,.footer-links{font-size:11.5px}
+.footer-legal{font-size:10.5px}
+
+@media(max-width:620px){
+  .brand-mark{width:46px;height:34px}
+  .brand-mark::before{font-size:15px}
+  .service-card{min-height:225px}
+  .service-card p{font-size:13.5px}
+  .capabilities-grid li{font-size:11px}
+  .process-list p,.engagement-flow p{font-size:12.5px}
+}
