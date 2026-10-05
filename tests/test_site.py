@@ -67,8 +67,10 @@ class SiteTests(unittest.TestCase):
         self.assertIn("7+ years native iOS experience", home)
         self.assertIn("Need help with a <em>production iOS app?</em>", ios)
         self.assertIn("Get an iOS Technical Review", ios)
-        self.assertIn("runtime validation is scoped separately", home)
+        self.assertIn("The review focuses on the agreed code, architecture, and project materials.", home)
         self.assertIn("Runtime profiling, build verification, device testing, or release execution can be scoped separately", ios)
+        self.assertIn('/assets/polish.20261005.css', home)
+        self.assertIn('/assets/polish.20261005.css', ios)
         for ambiguous_claim in (
             "Performance investigation",
             "Release support",
