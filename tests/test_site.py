@@ -1,15 +1,22 @@
-"""Quick static checks; run from repository root: py -m unittest discover -s tests -v."""
+"""Static site checks; run from repository root: py -m unittest discover -s tests -v."""
+from html.parser import HTMLParser
+import json
 from pathlib import Path
 import unittest
-from html.parser import HTMLParser
 
 ROOT = Path(__file__).resolve().parents[1] / "site"
+HTML_PAGES = ("index.html", "ios/index.html", "privacy/index.html", "terms/index.html", "404.html")
 
-class LinkParser(HTMLParser):
+
+class PageParser(HTMLParser):
     def __init__(self):
         super().__init__()
         self.ids = set()
         self.links = []
+        self.titles = []
+        self.meta = []
+        self.headings = []
+
     def handle_starttag(self, tag, attrs):
         data = dict(attrs)
         if data.get("id"):
@@ -18,19 +25,26 @@ class LinkParser(HTMLParser):
             target = data.get("href", data.get("src"))
             if target:
                 self.links.append(target)
+        if tag == "meta":
+            self.meta.append(data)
+        if tag in ("h1", "h2", "h3"):
+            self.headings.append(tag)
+
 
 class SiteTests(unittest.TestCase):
-    def test_required_pages(self):
-        for file in ("index.html", "privacy/index.html", "terms/index.html", "404.html", "assets/main.js", "assets/styles.css", "assets/favicon.svg", "robots.txt", "sitemap.xml"):
+    def parse(self, page):
+        parser = PageParser()
+        parser.feed((ROOT / page).read_text(encoding="utf-8"))
+        return parser
+
+    def test_required_files(self):
+        for file in (*HTML_PAGES, "assets/main.js", "assets/styles.css", "assets/favicon.svg", "robots.txt", "sitemap.xml", "_routes.json"):
             with self.subTest(file=file):
                 self.assertTrue((ROOT / file).is_file(), file)
 
-    def test_internal_paths_and_home_anchors(self):
-        home_parser = LinkParser()
-        home_parser.feed((ROOT / "index.html").read_text(encoding="utf-8"))
-        for page in ("index.html", "privacy/index.html", "terms/index.html", "404.html"):
-            parser = LinkParser()
-            parser.feed((ROOT / page).read_text(encoding="utf-8"))
+    def test_internal_paths_and_anchors(self):
+        page_parsers = {page: self.parse(page) for page in HTML_PAGES}
+        for page, parser in page_parsers.items():
             for link in parser.links:
                 if not link.startswith(("/", "#")) or link.startswith("//"):
                     continue
@@ -42,46 +56,85 @@ class SiteTests(unittest.TestCase):
                 if not url_path or url_path.endswith("/"):
                     filepath = filepath / "index.html"
                 self.assertTrue(filepath.is_file(), f"{page}: {link}")
-                if anchor and url_path == "":
-                    self.assertIn(anchor, home_parser.ids, f"{page}: {link}")
+                if anchor:
+                    target_page = "index.html" if not url_path else f"{url_path.rstrip('/')}/index.html"
+                    self.assertIn(anchor, page_parsers[target_page].ids, f"{page}: {link}")
 
-    def test_contact_email_and_copy_control(self):
-        html = (ROOT / "index.html").read_text(encoding="utf-8")
+    def test_home_and_ios_positioning(self):
+        home = (ROOT / "index.html").read_text(encoding="utf-8")
+        ios = (ROOT / "ios/index.html").read_text(encoding="utf-8")
+        self.assertIn("Production iOS engineering", home)
+        self.assertIn("7+ years native iOS experience", home)
+        self.assertIn("Need help with a <em>production iOS app?</em>", ios)
+        self.assertIn("Get an iOS Technical Review", ios)
+        self.assertIn("runtime validation is scoped separately", home)
+        self.assertIn("Runtime profiling, build verification, device testing, or release execution can be scoped separately", ios)
+        for ambiguous_claim in (
+            "Performance investigation",
+            "Release support",
+            ">Memory management<",
+            ">Testing &amp; delivery risk<",
+            ">Build / release concerns<"
+        ):
+            self.assertNotIn(ambiguous_claim, home + ios)
+        self.assertNotIn("world-class", (home + ios).lower())
+        self.assertNotIn("guaranteed", (home + ios).lower())
+
+    def test_seo_metadata_and_structured_data(self):
+        expectations = {
+            "index.html": ("ERB — iOS Engineering &amp; Technical Consulting", "https://erbhq.com/"),
+            "ios/index.html": ("iOS Technical Review &amp; Consulting | ERB", "https://erbhq.com/ios/")
+        }
+        for page, (title, canonical) in expectations.items():
+            text = (ROOT / page).read_text(encoding="utf-8")
+            with self.subTest(page=page):
+                self.assertIn(f"<title>{title}</title>", text)
+                self.assertIn(f'<link rel="canonical" href="{canonical}">', text)
+                self.assertIn('property="og:title"', text)
+                self.assertIn('name="twitter:card"', text)
+                self.assertIn('type="application/ld+json"', text)
+                structured = text.split('<script type="application/ld+json">', 1)[1].split("</script>", 1)[0]
+                json.loads(structured)
+
+    def test_contact_form_and_client_states(self):
+        for page in ("index.html", "ios/index.html"):
+            html = (ROOT / page).read_text(encoding="utf-8")
+            with self.subTest(page=page):
+                self.assertIn('class="contact-form"', html)
+                self.assertIn('action="/api/contact"', html)
+                self.assertIn('name="projectUrl"', html)
+                self.assertIn('name="stack"', html)
+                self.assertIn('name="timeline"', html)
+                self.assertIn("Please do not send confidential source code or credentials", html)
         js = (ROOT / "assets/main.js").read_text(encoding="utf-8")
-        self.assertIn('hello@erbhq.com', html)
-        self.assertIn('data-copy-email="hello@erbhq.com"', html)
-        self.assertIn('id="copy-contact-status"', html)
-        self.assertIn("navigator.clipboard", js)
-        self.assertIn("copyEmailButton.addEventListener('click'", js)
-        self.assertIn('https://thirumalaiyar.com/', html)
-        self.assertNotIn('dineshbabucse1@gmail.com', html)
-        self.assertIn('id="contact-form"', html)
-        self.assertIn('action="/api/contact"', html)
-        self.assertIn('id="contact-form-status"', html)
-        self.assertNotIn('Compose in Gmail', html)
         self.assertIn("fetch('/api/contact'", js)
+        self.assertIn("Sending your enquiry", js)
+        self.assertIn("dataset.state = 'success'", js)
+        self.assertIn("dataset.state = 'error'", js)
+        self.assertIn("navigator.clipboard", js)
 
     def test_contact_function_configuration(self):
         api = (ROOT.parent / "functions/api/contact.js").read_text(encoding="utf-8")
-        routes = __import__("json").loads((ROOT / "_routes.json").read_text(encoding="utf-8"))
+        routes = json.loads((ROOT / "_routes.json").read_text(encoding="utf-8"))
         self.assertEqual(routes["include"], ["/api/*"])
-        self.assertIn("context", api)
         self.assertIn("env.RESEND_API_KEY", api)
         self.assertIn("api.resend.com/emails", api)
-        self.assertNotIn("re_x", api)
         self.assertIn("reply_to: email", api)
+        self.assertIn("projectUrl", api)
+        self.assertNotIn("re_x", api)
 
-    def test_privacy_discloses_form(self):
+    def test_privacy_discloses_form_services_and_fields(self):
         policy = (ROOT / "privacy/index.html").read_text(encoding="utf-8")
-        self.assertIn("Resend", policy)
-        self.assertIn("contact form", policy)
+        for term in ("Resend", "Cloudflare Pages Function", "current iOS stack", "source code"):
+            self.assertIn(term, policy)
 
     def test_public_pages_do_not_include_editor_instructions(self):
-        for page in ("index.html", "privacy/index.html", "terms/index.html"):
+        for page in HTML_PAGES:
             text = (ROOT / page).read_text(encoding="utf-8").lower()
             with self.subTest(page=page):
                 self.assertNotIn("before publishing", text)
                 self.assertNotIn("the operator should", text)
+
 
 if __name__ == "__main__":
     unittest.main()

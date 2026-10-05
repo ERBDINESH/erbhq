@@ -5,7 +5,17 @@ import { readFile } from 'node:fs/promises';
 const source = await readFile(new URL('../functions/api/contact.js', import.meta.url), 'utf8');
 const { onRequest } = await import(`data:text/javascript,${encodeURIComponent(source)}`);
 const originalFetch = globalThis.fetch;
-const good = { name: 'Test Visitor', email: 'visitor@example.com', message: 'I want a website for my shop.', website: '', consent: true };
+const good = {
+  name: 'Test Visitor',
+  email: 'visitor@example.com',
+  company: 'Example Studio',
+  projectUrl: 'https://apps.apple.com/app/example/id123456789',
+  stack: 'Swift + Objective-C',
+  timeline: 'This quarter',
+  message: 'We need an architecture review for our production iOS application.',
+  fax: ''
+};
+
 function makeContext(body = good, headers = {}, method = 'POST', env = { RESEND_API_KEY: 'test-secret' }) {
   return {
     request: new Request('https://erbhq.com/api/contact', {
@@ -17,7 +27,7 @@ function makeContext(body = good, headers = {}, method = 'POST', env = { RESEND_
   };
 }
 
-test('valid enquiry sends to public alias without exposing personal inbox', async () => {
+test('valid enquiry sends all supplied fields to the public alias', async () => {
   let called = 0;
   globalThis.fetch = async (url, options) => {
     called += 1;
@@ -27,7 +37,9 @@ test('valid enquiry sends to public alias without exposing personal inbox', asyn
     assert.deepEqual(email.to, ['hello@erbhq.com']);
     assert.equal(email.from, 'ERB HQ Enquiries <enquiries@notify.erbhq.com>');
     assert.equal(email.reply_to, good.email);
-    assert.match(email.text, /website for my shop/);
+    assert.match(email.text, /Example Studio/);
+    assert.match(email.text, /Swift \+ Objective-C/);
+    assert.match(email.text, /architecture review/);
     return new Response(JSON.stringify({ id: 'mock-email-id' }), { status: 200 });
   };
   try {
@@ -38,18 +50,27 @@ test('valid enquiry sends to public alias without exposing personal inbox', asyn
   } finally { globalThis.fetch = originalFetch; }
 });
 
+test('optional enquiry fields may be omitted', async () => {
+  globalThis.fetch = async () => new Response(JSON.stringify({ id: 'mock-email-id' }), { status: 200 });
+  try {
+    const { company, projectUrl, stack, timeline, ...minimal } = good;
+    assert.equal((await onRequest(makeContext(minimal))).status, 200);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
 test('rejects other origins and disallowed methods', async () => {
   assert.equal((await onRequest(makeContext(good, { Origin: 'https://attacker.test' }))).status, 403);
   assert.equal((await onRequest(makeContext(good, {}, 'GET'))).status, 405);
 });
 
-test('rejects missing consent, honeypot and invalid inputs', async () => {
+test('rejects honeypot, invalid required fields, URLs, and stack values', async () => {
   for (const body of [
-    { ...good, consent: false },
-    { ...good, website: 'https://spam.example' },
+    { ...good, fax: 'spam' },
     { ...good, email: 'not-an-email' },
     { ...good, message: 'short' },
-    { ...good, message: 'x'.repeat(3001) }
+    { ...good, message: 'x'.repeat(3001) },
+    { ...good, projectUrl: 'javascript:alert(1)' },
+    { ...good, stack: 'Unlisted framework' }
   ]) assert.equal((await onRequest(makeContext(body))).status, 400);
 });
 

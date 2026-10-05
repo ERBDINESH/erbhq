@@ -6,6 +6,15 @@ const ALLOWED_ORIGINS = new Set([
 ]);
 const MAX_BODY_BYTES = 8192;
 const EMAIL_PATTERN = /^[^\s@<>\r\n]+@[^\s@<>\r\n]+\.[^\s@<>\r\n]+$/;
+const ALLOWED_STACKS = new Set([
+  '',
+  'SwiftUI',
+  'UIKit',
+  'Swift + Objective-C',
+  'Objective-C',
+  'Not sure',
+  'Other'
+]);
 
 function jsonResponse(body, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -44,6 +53,23 @@ async function readBoundedJson(request) {
   return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(buffer));
 }
 
+function optionalText(value, maxLength) {
+  if (value === undefined || value === null) return '';
+  if (typeof value !== 'string') return null;
+  const text = value.trim();
+  return text.length <= maxLength ? text : null;
+}
+
+function validPublicUrl(value) {
+  if (!value) return true;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' || url.protocol === 'http:';
+  } catch (_) {
+    return false;
+  }
+}
+
 export async function onRequest(context) {
   const { request, env } = context;
   if (request.method !== 'POST') {
@@ -69,16 +95,24 @@ export async function onRequest(context) {
     return jsonResponse({ error: 'Invalid request' }, 400);
   }
   // Basic honeypot only; add Turnstile/WAF rate limits before broad promotion.
-  if (typeof data.website !== 'string' || data.website.length > 0) {
+  if (typeof data.fax !== 'string' || data.fax.length > 0) {
     return jsonResponse({ error: 'Invalid request' }, 400);
   }
-  if (data.consent !== true || typeof data.name !== 'string' || typeof data.email !== 'string' || typeof data.message !== 'string') {
+  if (typeof data.name !== 'string' || typeof data.email !== 'string' || typeof data.message !== 'string') {
     return jsonResponse({ error: 'Please complete all fields' }, 400);
   }
   const name = data.name.trim();
   const email = data.email.trim();
   const message = data.message.trim();
-  if (!name || name.length > 100 || !email || email.length > 254 || !EMAIL_PATTERN.test(email) || message.length < 10 || message.length > 3000) {
+  const company = optionalText(data.company, 120);
+  const projectUrl = optionalText(data.projectUrl, 500);
+  const stack = optionalText(data.stack, 40);
+  const timeline = optionalText(data.timeline, 120);
+  if (
+    !name || name.length > 100 || !email || email.length > 254 || !EMAIL_PATTERN.test(email) ||
+    message.length < 10 || message.length > 3000 || company === null || projectUrl === null ||
+    stack === null || timeline === null || !ALLOWED_STACKS.has(stack) || !validPublicUrl(projectUrl)
+  ) {
     return jsonResponse({ error: 'Invalid name, email or message' }, 400);
   }
   if (!env?.RESEND_API_KEY) {
@@ -86,12 +120,20 @@ export async function onRequest(context) {
   }
 
   // Deliver to the public address; existing Cloudflare Email Routing forwards to inbox.
+  const details = [
+    `Name: ${name}`,
+    `Work email: ${email}`,
+    company ? `Company: ${company}` : null,
+    projectUrl ? `Website / App Store URL: ${projectUrl}` : null,
+    stack ? `Current stack: ${stack}` : null,
+    timeline ? `Timeline: ${timeline}` : null
+  ].filter(Boolean).join('\n');
   const payload = {
     from: 'ERB HQ Enquiries <enquiries@notify.erbhq.com>',
     to: ['hello@erbhq.com'],
     reply_to: email,
-    subject: 'ERB HQ website enquiry',
-    text: `New ERB HQ enquiry\n\nName: ${name}\nEmail: ${email}\n\nProject details:\n${message}`
+    subject: 'ERB iOS technical review enquiry',
+    text: `New iOS technical review enquiry\n\n${details}\n\nWhat they need help with:\n${message}`
   };
   try {
     const result = await fetch('https://api.resend.com/emails', {

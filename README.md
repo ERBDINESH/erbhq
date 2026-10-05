@@ -1,12 +1,13 @@
 # ERB HQ — erbhq.com
 
-Source for the ERB informational website. This repository is a **plain HTML/CSS/JavaScript** site; no npm, MacBook, build step, API keys, or paid hosting are needed to edit and preview locally.
+Source for the ERB iOS engineering and technical consulting website. This repository is a **plain HTML/CSS/JavaScript** site; no npm, framework, build step, or client-side API keys are needed to edit and preview locally.
 
 ## Folder layout
 
 ```text
 site/
-  index.html            Home, services, products, about, contact
+  index.html            iOS consulting homepage
+  ios/index.html        iOS Technical Review landing page
   privacy/index.html    Website-only privacy notice
   terms/index.html      Website-only terms of use
   assets/               CSS, JS and favicon
@@ -24,7 +25,7 @@ From the repository root:
 py -m http.server 8000 --directory site
 ```
 
-Open `http://localhost:8000/`, `/privacy/`, and `/terms/` in your browser. Press `Ctrl+C` to stop. If `py` is unavailable, install Python or use `python -m http.server 8000 --directory site`.
+Open `http://localhost:8000/`, `/ios/`, `/privacy/`, and `/terms/` in your browser. Press `Ctrl+C` to stop. If `py` is unavailable, install Python or use `python -m http.server 8000 --directory site`.
 
 Optional checks:
 
@@ -73,7 +74,7 @@ Official docs:
 
 ## Publish checks (not automated)
 
-- Verify `https://erbdinesh.com/#connect` is a **working enquiry channel** you monitor. If not, replace it with a real, tested contact method consistently on home, privacy and terms pages.
+- Verify the on-site `/api/contact` enquiry flow and `hello@erbhq.com` fallback are monitored before promoting the site.
 - Confirm LaunchProof link, Thirumalaiyar development status, and service descriptions are accurate.
 - Check Cloudflare account analytics, email routing and other third-party tools. The privacy notice describes source-code features only and may need changes to match your actual setup. Have privacy/terms reviewed for applicable requirements.
 - ERB is presented as an individual initiative, **not an incorporated company**; registration status is not implied. Check relevant name/trademark issues before representing exclusivity.
